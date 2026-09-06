@@ -1,0 +1,25 @@
+info:
+  name: login
+  type: http
+  seq: 1
+
+http:
+  method: post
+  url: http://localhost:8000/api/auth/login
+  headers:
+    - name: Content-Type
+      value: application/json
+  body:
+    type: json
+    data: |-
+      {
+        "email": "admin@municipalidad.com",
+        "password": "password"
+      }
+  auth: inherit
+
+settings:
+  encodeUrl: false
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
