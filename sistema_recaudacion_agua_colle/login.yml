@@ -18,6 +18,11 @@ http:
       }
   auth: inherit
 
+runtime:
+  scripts:
+    - type: before-request
+      code: bru.setVar("token", res.body.token);
+
 settings:
   encodeUrl: false
   timeout: 0

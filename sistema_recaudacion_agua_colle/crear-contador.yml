@@ -1,0 +1,34 @@
+info:
+  name: crear-contador
+  type: http
+
+http:
+  method: POST
+  url: http://localhost:8000/api/contadores
+  headers:
+    - name: Authorization
+      value: Bearer {TOKEN}
+    - name: Content-Type
+      value: application/json
+  body:
+    type: json
+    data: "{\r
+
+      \  \"codigo_contador\": \"M004\",\r
+
+      \  \"dpi\": \"1234567890123\",\r
+
+      \  \"nit\": \"1234567-8\",\r
+
+      \  \"nombre_propietario\": \"Carlos Méndez\",\r
+
+      \  \"estado\": \"activo\"\r
+
+      }"
+  auth: inherit
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

@@ -36,7 +36,7 @@ class User {
     public function updateLastAccess(int $id): bool {
         $stmt = $this->db->prepare("
             UPDATE usuarios_sistema 
-            SET ultimo_acceso = CURRENT_TIMESTAMP 
+            SET updated_at = CURRENT_TIMESTAMP 
             WHERE id_usuario = :id
         ");
         return $stmt->execute([':id' => $id]);

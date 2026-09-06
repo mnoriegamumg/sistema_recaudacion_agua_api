@@ -1,0 +1,40 @@
+info:
+  name: post-pago
+  type: http
+
+http:
+  method: POST
+  url: http://localhost:8000/api/pagos
+  headers:
+    - name: Authorization
+      value: Bearer {TOKEN}
+    - name: Content-Type
+      value: application/json
+  body:
+    type: json
+    data: "{\r
+
+      \  \"id_contador\": 1,\r
+
+      \  \"monto\": 125.00,\r
+
+      \  \"mes_pagado\": 1,\r
+
+      \  \"ano_pagado\": 2026,\r
+
+      \  \"periodo_inicio\": \"2026-01-01\",\r
+
+      \  \"periodo_fin\": \"2026-01-31\",\r
+
+      \  \"pagado_por\": \"María García\",\r
+
+      \  \"id_usuario_sistema\": 1\r
+
+      }"
+  auth: inherit
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
