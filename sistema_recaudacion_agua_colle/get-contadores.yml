@@ -1,6 +1,7 @@
 info:
   name: get-contadores
   type: http
+  seq: 1
 
 http:
   method: GET
@@ -8,10 +9,18 @@ http:
   headers:
     - name: Authorization
       value: Bearer {TOKEN}
-  auth: inherit
+  auth:
+    type: bearer
+    token: "{{TOKEN}}"
+
+runtime:
+  variables:
+    - name: TOKEN
+      value: eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJzdWIiOjEsImVtYWlsIjoiYWRtaW5AbXVuaWNpcGFsaWRhZC5jb20iLCJyb2wiOiJhZG1pbiIsImlhdCI6MTc4ODcxNDc2OSwiZXhwIjoxNzg4NzE4MzY5fQ.wGitYleHA7H2OUlcUgkfWtwLfGLZCTE2N2yXwtc58hk
 
 settings:
   encodeUrl: true
   timeout: 0
   followRedirects: true
   maxRedirects: 5
+​

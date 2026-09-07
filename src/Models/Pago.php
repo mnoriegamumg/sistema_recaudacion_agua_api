@@ -11,6 +11,9 @@ class Pago {
         $this->db = Database::getInstance()->getConnection();
     }
 
+    /**
+     * Registrar un nuevo pago
+     */
     public function registrar(array $data): array {
         // Generar número de recibo único
         $numeroRecibo = 'REC-' . date('Ymd') . '-' . str_pad(rand(1, 9999), 4, '0', STR_PAD_LEFT);
@@ -18,7 +21,6 @@ class Pago {
         $this->db->beginTransaction();
         
         try {
-            // Insertar pago
             $stmt = $this->db->prepare("
                 INSERT INTO pagos (
                     id_contador, id_usuario_sistema, monto, mes_pagado, ano_pagado,
@@ -33,7 +35,7 @@ class Pago {
             
             $stmt->execute([
                 ':id_contador' => $data['id_contador'],
-                ':id_usuario' => $data['id_usuario_sistema'],
+                ':id_usuario' => $data['id_usuario_sistema'] ?? $_SERVER['USER_DATA']->sub ?? 1,
                 ':monto' => $data['monto'],
                 ':mes' => $data['mes_pagado'],
                 ':ano' => $data['ano_pagado'],
@@ -44,12 +46,10 @@ class Pago {
                 ':identificacion' => $data['identificacion'] ?? null,
                 ':observaciones' => $data['observaciones'] ?? null,
                 ':numero_recibo' => $numeroRecibo,
-                ':created_by' => $data['created_by'] ?? $data['id_usuario_sistema']
+                ':created_by' => $data['created_by'] ?? $_SERVER['USER_DATA']->sub ?? 1
             ]);
 
             $idPago = $this->db->lastInsertId();
-            
-            // Obtener el pago completo
             $pago = $this->findById($idPago);
             
             $this->db->commit();
@@ -69,15 +69,18 @@ class Pago {
         }
     }
 
+    /**
+     * Obtener pago por ID
+     */
     public function findById(int $id): ?array {
         $stmt = $this->db->prepare("
             SELECT p.*, 
                    c.codigo_contador, c.nombre_propietario,
-                   cli.comunidad,
+                   cl.comunidad,
                    us.nombre_completo as usuario_registro
             FROM pagos p
             JOIN contadores c ON p.id_contador = c.id_contador
-            LEFT JOIN clientes cli ON c.id_contador = cli.id_contador
+            LEFT JOIN clientes cl ON c.id_contador = cl.id_contador
             JOIN usuarios_sistema us ON p.id_usuario_sistema = us.id_usuario
             WHERE p.id_pago = :id
         ");
@@ -86,6 +89,29 @@ class Pago {
         return $result ?: null;
     }
 
+    /**
+     * Obtener pago por número de recibo
+     */
+    public function getByRecibo(string $numeroRecibo): ?array {
+        $stmt = $this->db->prepare("
+            SELECT p.*, 
+                   c.codigo_contador, c.nombre_propietario,
+                   cl.comunidad,
+                   us.nombre_completo as usuario_registro
+            FROM pagos p
+            JOIN contadores c ON p.id_contador = c.id_contador
+            LEFT JOIN clientes cl ON c.id_contador = cl.id_contador
+            JOIN usuarios_sistema us ON p.id_usuario_sistema = us.id_usuario
+            WHERE p.numero_recibo = :recibo
+        ");
+        $stmt->execute([':recibo' => $numeroRecibo]);
+        $result = $stmt->fetch();
+        return $result ?: null;
+    }
+
+    /**
+     * Historial de pagos de un contador
+     */
     public function getByContador(int $idContador, ?int $ano = null): array {
         $sql = "
             SELECT p.*, us.nombre_completo as usuario_registro
@@ -108,21 +134,9 @@ class Pago {
         return $stmt->fetchAll();
     }
 
-    public function getByRecibo(string $numeroRecibo): ?array {
-        $stmt = $this->db->prepare("
-            SELECT p.*, 
-                   c.codigo_contador, c.nombre_propietario,
-                   us.nombre_completo as usuario_registro
-            FROM pagos p
-            JOIN contadores c ON p.id_contador = c.id_contador
-            JOIN usuarios_sistema us ON p.id_usuario_sistema = us.id_usuario
-            WHERE p.numero_recibo = :recibo
-        ");
-        $stmt->execute([':recibo' => $numeroRecibo]);
-        $result = $stmt->fetch();
-        return $result ?: null;
-    }
-
+    /**
+     * Listar todos los pagos (con paginación)
+     */
     public function getAll(?int $limit = 100, ?int $offset = 0): array {
         $stmt = $this->db->prepare("
             SELECT p.*, 
@@ -131,7 +145,7 @@ class Pago {
             FROM pagos p
             JOIN contadores c ON p.id_contador = c.id_contador
             JOIN usuarios_sistema us ON p.id_usuario_sistema = us.id_usuario
-            ORDER BY p.fecha_pago DESC
+            ORDER BY p.created_at DESC
             LIMIT :limit OFFSET :offset
         ");
         $stmt->bindValue(':limit', $limit, PDO::PARAM_INT);
@@ -140,6 +154,30 @@ class Pago {
         return $stmt->fetchAll();
     }
 
+    /**
+     * Resumen de pagos por fecha
+     */
+    public function getResumenPorFecha(string $fechaInicio, string $fechaFin): array {
+        $stmt = $this->db->prepare("
+            SELECT 
+                COUNT(*) as total_pagos,
+                SUM(monto) as total_recaudado,
+                AVG(monto) as promedio_pago,
+                COUNT(DISTINCT id_contador) as total_contribuyentes
+            FROM pagos
+            WHERE DATE(created_at) BETWEEN :fecha_inicio AND :fecha_fin
+            AND estado_pago = 'pagado'
+        ");
+        $stmt->execute([
+            ':fecha_inicio' => $fechaInicio,
+            ':fecha_fin' => $fechaFin
+        ]);
+        return $stmt->fetch() ?: [];
+    }
+
+    /**
+     * Anular un pago
+     */
     public function anular(int $idPago, string $motivo, int $userId): bool {
         $stmt = $this->db->prepare("
             UPDATE pagos 
@@ -154,5 +192,26 @@ class Pago {
             ':motivo' => $motivo,
             ':updated_by' => $userId
         ]);
+    }
+
+    /**
+     * Verificar si un mes ya fue pagado para un contador
+     */
+    public function mesYaPagado(int $idContador, int $mes, int $ano): bool {
+        $stmt = $this->db->prepare("
+            SELECT COUNT(*) as total
+            FROM pagos
+            WHERE id_contador = :id_contador
+            AND mes_pagado = :mes
+            AND ano_pagado = :ano
+            AND estado_pago = 'pagado'
+        ");
+        $stmt->execute([
+            ':id_contador' => $idContador,
+            ':mes' => $mes,
+            ':ano' => $ano
+        ]);
+        $result = $stmt->fetch();
+        return $result['total'] > 0;
     }
 }

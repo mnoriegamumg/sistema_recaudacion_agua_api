@@ -2,6 +2,27 @@ opencollection: 1.0.0
 
 info:
   name: sistema_recaudacion_agua_colle
+config:
+  proxy:
+    inherit: true
+    config:
+      protocol: http
+      hostname: ""
+      port: ""
+      auth:
+        username: ""
+        password: ""
+      bypassProxy: ""
+
+request:
+  auth:
+    type: bearer
+    token: "{{TOKEN}}"
+  variables:
+    - name: token
+      value: ""
+    - name: TOKEN
+      value: eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJzdWIiOjEsImVtYWlsIjoiYWRtaW5AbXVuaWNpcGFsaWRhZC5jb20iLCJyb2wiOiJhZG1pbiIsImlhdCI6MTc4ODcxNDgwNSwiZXhwIjoxNzg4NzE4NDA1fQ.4XSTgxdu-sY1nGYKVgOvixzs2SGk2TD-0bgbsMq3zmI
 bundled: false
 extensions:
   bruno:

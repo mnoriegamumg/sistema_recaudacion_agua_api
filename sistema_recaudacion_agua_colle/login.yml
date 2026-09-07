@@ -21,7 +21,9 @@ http:
 runtime:
   scripts:
     - type: before-request
-      code: bru.setVar("token", res.body.token);
+      code: |-
+        bru.setVar("token", res.body.data.token);
+        bru.setVar("TOKEN", res.body.data.token);
 
 settings:
   encodeUrl: false
