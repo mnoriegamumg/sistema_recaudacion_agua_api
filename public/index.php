@@ -104,6 +104,19 @@ $protectedRoutes = [
     'GET /api/tarifas/actual' => ['App\Controllers\TarifaController', 'actual'],
     'POST /api/tarifas' => ['App\Controllers\TarifaController', 'crear'],
     'PUT /api/tarifas/{id}' => ['App\Controllers\TarifaController', 'actualizar'],
+
+    // ==========================================
+    // ADMINISTRACIÓN DE USUARIOS
+    // ==========================================
+    'GET /api/usuarios' => ['App\Controllers\UsuarioController', 'listar'],
+    'GET /api/usuarios/{id}' => ['App\Controllers\UsuarioController', 'obtener'],
+    'POST /api/usuarios' => ['App\Controllers\UsuarioController', 'crear'],
+    'PUT /api/usuarios/{id}' => ['App\Controllers\UsuarioController', 'actualizar'],
+    'PUT /api/usuarios/{id}/password' => ['App\Controllers\UsuarioController', 'cambiarPassword'],
+    'PATCH /api/usuarios/{id}/toggle' => ['App\Controllers\UsuarioController', 'toggleActivo'],
+
+    // Cambiar mi propia contraseña (cualquier usuario autenticado)
+'PUT /api/usuarios/perfil/password' => ['App\Controllers\UsuarioController', 'cambiarMiPassword'],
 ];
 
 // ============================================
