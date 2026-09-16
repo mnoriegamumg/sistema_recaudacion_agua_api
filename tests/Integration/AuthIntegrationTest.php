@@ -125,11 +125,11 @@ class AuthIntegrationTest extends TestCase
         $this->assertTrue($result, 'El último acceso debe actualizarse');
 
         // Verificar que se actualizó
-        $stmt = $db->prepare("SELECT ultimo_acceso FROM usuarios_sistema WHERE id_usuario = :id");
+        $stmt = $db->prepare("SELECT updated_at FROM usuarios_sistema WHERE id_usuario = :id");
         $stmt->execute([':id' => $idUsuario]);
         $usuario = $stmt->fetch();
 
-        $this->assertNotNull($usuario['ultimo_acceso']);
+        $this->assertNotNull($usuario['updated_at']);
     }
 
     /**

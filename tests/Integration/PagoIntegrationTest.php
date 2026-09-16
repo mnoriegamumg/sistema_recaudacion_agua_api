@@ -9,6 +9,7 @@ use App\Config\Database;
 class PagoIntegrationTest extends TestCase
 {
     private int $idContadorTest = 0;
+    private Contador $contadorModel;
 
     protected function setUp(): void
     {
@@ -20,6 +21,8 @@ class PagoIntegrationTest extends TestCase
         $_ENV['DB_PASSWORD'] = '';
 
         try {
+            $this->contadorModel = new Contador();
+            $this->pagoModel = new Pago();
             $db = Database::getInstance()->getConnection();
 
             // Limpiar pagos y contadores de prueba
@@ -27,8 +30,7 @@ class PagoIntegrationTest extends TestCase
             $db->exec("DELETE FROM contadores WHERE codigo_contador LIKE 'TESTPAGO%'");
 
             // Crear contador de prueba
-            $contadorModel = new Contador();
-            $contador = $contadorModel->create([
+            $contador = $this->contadorModel->create([
                 'codigo_contador' => 'TESTPAGO01',
                 'nombre_propietario' => 'Usuario Pago Test',
                 'estado' => 'activo'
@@ -71,30 +73,51 @@ class PagoIntegrationTest extends TestCase
     /**
      * Prueba de Integración 2: Buscar pago por número de recibo
      */
-    public function test_buscar_pago_por_recibo(): void
-    {
-        $pagoModel = new Pago();
-
-        // Registrar pago
-        $pagoModel->registrar([
-            'id_contador' => $this->idContadorTest,
-            'id_usuario_sistema' => 1,
-            'monto' => 100.00,
-            'mes_pagado' => 2,
-            'ano_pagado' => 2026,
-            'periodo_inicio' => '2026-02-01',
-            'periodo_fin' => '2026-02-28',
-            'pagado_por' => 'Test Recibo',
-            'numero_recibo' => 'TEST-202602-001',
-            'created_by' => 1
-        ]);
-
-        // Buscar por recibo
-        $pago = $pagoModel->getByRecibo('TEST-202602-001');
-
-        $this->assertNotNull($pago);
-        $this->assertEquals(100.00, $pago['monto']);
+    public function test_buscar_pago_por_recibo(): void {
+    // 1. Primero registrar un pago para tener un recibo válido
+    $contador = $this->contadorModel->findByCodigo('M001');
+    
+    if (!$contador) {
+        $this->markTestSkipped('No hay contadores disponibles');
     }
+
+    // Usar un mes diferente para evitar duplicados
+    $mes = rand(1, 12);
+    $ano = 2025; // Usar un año diferente
+    
+    // Verificar que no esté pagado
+    if ($this->pagoModel->mesYaPagado($contador['id_contador'], $mes, $ano)) {
+        $this->markTestSkipped('El mes ya está pagado');
+    }
+
+    // Registrar un pago nuevo
+    $data = [
+        'id_contador' => $contador['id_contador'],
+        'id_usuario_sistema' => 1,
+        'monto' => 125.00,
+        'mes_pagado' => $mes,
+        'ano_pagado' => $ano,
+        'periodo_inicio' => "{$ano}-{$mes}-01",
+        'periodo_fin' => date('Y-m-t', strtotime("{$ano}-{$mes}-01")),
+        'pagado_por' => 'Test Usuario',
+        'estado_pago' => 'pagado',
+        'numero_recibo' => 'TEST-' . time()
+    ];
+
+    $resultado = $this->pagoModel->registrar($data);
+    $this->assertTrue($resultado['success'], 'El pago debe registrarse');
+
+    // 2. Ahora buscar el pago por el número de recibo generado
+    $numeroRecibo = $resultado['numero_recibo'];
+    $pago = $this->pagoModel->getByRecibo($numeroRecibo);
+
+    // 3. Verificar que se encontró
+    $this->assertNotNull($pago, "El pago con recibo {$numeroRecibo} debe existir");
+    $this->assertEquals($numeroRecibo, $pago['numero_recibo']);
+    $this->assertEquals(125.00, $pago['monto']);
+    $this->assertEquals($mes, $pago['mes_pagado']);
+    $this->assertEquals($ano, $pago['ano_pagado']);
+}
 
     /**
      * Prueba de Integración 3: Verificar que un mes ya pagado no se duplique

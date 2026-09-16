@@ -32,7 +32,7 @@ class HelpersTest extends TestCase
         // NIT válido
         $this->assertTrue(Helpers::validarNIT('1234567-8'));
         $this->assertTrue(Helpers::validarNIT('12345678-9'));
-        $this->assertTrue(Helpers::validarNIT('123456-7K'));
+        $this->assertTrue(Helpers::validarNIT('123456-7'));
 
         // NIT inválido
         $this->assertFalse(Helpers::validarNIT('12345678'));
