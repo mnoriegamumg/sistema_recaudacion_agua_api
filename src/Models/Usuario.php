@@ -54,6 +54,18 @@ class Usuario {
     }
 
     /**
+     * Actualizar la fecha de último acceso del usuario
+     */
+    public function updateLastAccess(int $id): bool {
+        $stmt = $this->db->prepare("
+            UPDATE usuarios_sistema 
+            SET updated_at = CURRENT_TIMESTAMP 
+            WHERE id_usuario = :id
+        ");
+        return $stmt->execute([':id' => $id]);
+    }
+
+    /**
      * Crear un nuevo usuario
      */
     public function create(array $data): array {

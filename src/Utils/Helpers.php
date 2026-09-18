@@ -7,13 +7,16 @@ namespace App\Utils;
 class Helpers {
     
     /**
-     * Generar número de recibo único
-     * Ejemplo: REC-202601-0001
+     * Generar número de recibo con un secuencial dado
+     * Ejemplo: (1) -> REC-202601-0001
+     *
+     * @param int      $secuencia Número correlativo del recibo dentro del mes
+     * @param int      $padding   Cantidad de dígitos del correlativo
+     * @param string|null $fecha  Periodo en formato Ym (por defecto el mes actual)
      */
-    public static function generarNumeroRecibo(int $contador = null): string {
-        $fecha = date('Ym');
-        $secuencia = $contador ?? rand(1, 9999);
-        return 'REC-' . $fecha . '-' . str_pad($secuencia, 4, '0', STR_PAD_LEFT);
+    public static function generarNumeroRecibo(int $secuencia, int $padding = 4, ?string $fecha = null): string {
+        $fecha = $fecha ?? date('Ym');
+        return 'REC-' . $fecha . '-' . str_pad((string)$secuencia, $padding, '0', STR_PAD_LEFT);
     }
 
     /**

@@ -2,71 +2,122 @@
 namespace App\Models;
 
 use App\Config\Database;
+use App\Utils\Helpers;
 use PDO;
 
 class Pago {
     private PDO $db;
+
+    /** Máximo de intentos para generar un número de recibo único ante colisión */
+    private const MAX_INTENTOS_RECIBO = 5;
 
     public function __construct() {
         $this->db = Database::getInstance()->getConnection();
     }
 
     /**
-     * Registrar un nuevo pago
+     * Registrar un nuevo pago.
+     *
+     * El número de recibo se genera de forma secuencial por periodo (REC-YYYYMM-NNNN)
+     * dentro de la transacción. Ante una colisión con la restricción UNIQUE de la
+     * columna numero_recibo (por concurrencia), se reintenta con el siguiente correlativo.
      */
     public function registrar(array $data): array {
-        // Generar número de recibo único
-        $numeroRecibo = 'REC-' . date('Ymd') . '-' . str_pad(rand(1, 9999), 4, '0', STR_PAD_LEFT);
-        
-        $this->db->beginTransaction();
-        
-        try {
-            $stmt = $this->db->prepare("
-                INSERT INTO pagos (
-                    id_contador, id_usuario_sistema, monto, mes_pagado, ano_pagado,
-                    periodo_inicio, periodo_fin, es_pago_anual, pagado_por,
-                    identificacion, observaciones, numero_recibo, created_by
-                ) VALUES (
-                    :id_contador, :id_usuario, :monto, :mes, :ano,
-                    :periodo_inicio, :periodo_fin, :es_anual, :pagado_por,
-                    :identificacion, :observaciones, :numero_recibo, :created_by
-                )
-            ");
-            
-            $stmt->execute([
-                ':id_contador' => $data['id_contador'],
-                ':id_usuario' => $data['id_usuario_sistema'] ?? $_SERVER['USER_DATA']->sub ?? 1,
-                ':monto' => $data['monto'],
-                ':mes' => $data['mes_pagado'],
-                ':ano' => $data['ano_pagado'],
-                ':periodo_inicio' => $data['periodo_inicio'],
-                ':periodo_fin' => $data['periodo_fin'],
-                ':es_anual' => $data['es_pago_anual'] ?? 0,
-                ':pagado_por' => $data['pagado_por'],
-                ':identificacion' => $data['identificacion'] ?? null,
-                ':observaciones' => $data['observaciones'] ?? null,
-                ':numero_recibo' => $numeroRecibo,
-                ':created_by' => $data['created_by'] ?? $_SERVER['USER_DATA']->sub ?? 1
-            ]);
+        $periodo = date('Ym');
 
-            $idPago = $this->db->lastInsertId();
-            $pago = $this->findById($idPago);
-            
-            $this->db->commit();
-            
-            return [
-                'success' => true,
-                'data' => $pago,
-                'numero_recibo' => $numeroRecibo
-            ];
-            
-        } catch (\Exception $e) {
-            $this->db->rollBack();
-            return [
-                'success' => false,
-                'error' => $e->getMessage()
-            ];
+        for ($intento = 0; $intento < self::MAX_INTENTOS_RECIBO; $intento++) {
+            $this->db->beginTransaction();
+
+            try {
+                $numeroRecibo = $this->generarNumeroReciboUnico($periodo);
+
+                $stmt = $this->db->prepare("
+                    INSERT INTO pagos (
+                        id_contador, id_usuario_sistema, monto, mes_pagado, ano_pagado,
+                        periodo_inicio, periodo_fin, es_pago_anual, pagado_por,
+                        identificacion, observaciones, numero_recibo, created_by
+                    ) VALUES (
+                        :id_contador, :id_usuario, :monto, :mes, :ano,
+                        :periodo_inicio, :periodo_fin, :es_anual, :pagado_por,
+                        :identificacion, :observaciones, :numero_recibo, :created_by
+                    )
+                ");
+
+                $stmt->execute([
+                    ':id_contador' => $data['id_contador'],
+                    ':id_usuario' => $data['id_usuario_sistema'] ?? $_SERVER['USER_DATA']->sub ?? 1,
+                    ':monto' => $data['monto'],
+                    ':mes' => $data['mes_pagado'],
+                    ':ano' => $data['ano_pagado'],
+                    ':periodo_inicio' => $data['periodo_inicio'],
+                    ':periodo_fin' => $data['periodo_fin'],
+                    ':es_anual' => $data['es_pago_anual'] ?? 0,
+                    ':pagado_por' => $data['pagado_por'],
+                    ':identificacion' => $data['identificacion'] ?? null,
+                    ':observaciones' => $data['observaciones'] ?? null,
+                    ':numero_recibo' => $numeroRecibo,
+                    ':created_by' => $data['created_by'] ?? $_SERVER['USER_DATA']->sub ?? 1
+                ]);
+
+                $idPago = $this->db->lastInsertId();
+                $pago = $this->findById($idPago);
+
+                $this->db->commit();
+
+                return [
+                    'success' => true,
+                    'data' => $pago,
+                    'numero_recibo' => $numeroRecibo
+                ];
+
+            } catch (\PDOException $e) {
+                $this->db->rollBack();
+
+                // 23000 = violación de restricción de integridad (recibo duplicado).
+                // Reintentar con un nuevo correlativo salvo que se agoten los intentos.
+                if ($e->getCode() === '23000' && $intento < self::MAX_INTENTOS_RECIBO - 1) {
+                    continue;
+                }
+
+                return [
+                    'success' => false,
+                    'error' => $e->getMessage()
+                ];
+            } catch (\Exception $e) {
+                $this->db->rollBack();
+                return [
+                    'success' => false,
+                    'error' => $e->getMessage()
+                ];
+            }
         }
+
+        return [
+            'success' => false,
+            'error' => 'No se pudo generar un número de recibo único'
+        ];
+    }
+
+    /**
+     * Calcular el siguiente número de recibo correlativo para un periodo (Ym).
+     * Toma el mayor correlativo ya usado en el periodo y le suma uno.
+     */
+    private function generarNumeroReciboUnico(string $periodo): string {
+        $prefijo = 'REC-' . $periodo . '-';
+
+        $stmt = $this->db->prepare("
+            SELECT MAX(CAST(SUBSTRING(numero_recibo, :largo_prefijo) AS UNSIGNED)) AS ultimo
+            FROM pagos
+            WHERE numero_recibo LIKE :patron
+        ");
+        $stmt->bindValue(':largo_prefijo', strlen($prefijo) + 1, PDO::PARAM_INT);
+        $stmt->bindValue(':patron', $prefijo . '%', PDO::PARAM_STR);
+        $stmt->execute();
+        $resultado = $stmt->fetch();
+
+        $siguiente = ((int)($resultado['ultimo'] ?? 0)) + 1;
+
+        return Helpers::generarNumeroRecibo($siguiente, 4, $periodo);
     }
 
     /**

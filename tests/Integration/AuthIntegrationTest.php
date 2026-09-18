@@ -2,7 +2,7 @@
 namespace Tests\Integration;
 
 use PHPUnit\Framework\TestCase;
-use App\Models\User;
+use App\Models\Usuario;
 use App\Services\JWTService;
 use App\Config\Database;
 
@@ -63,7 +63,7 @@ class AuthIntegrationTest extends TestCase
         ]);
 
         // Buscar usuario
-        $userModel = new User();
+        $userModel = new Usuario();
         $user = $userModel->findByEmail('test.login@municipalidad.com');
 
         $this->assertNotNull($user);
@@ -90,7 +90,7 @@ class AuthIntegrationTest extends TestCase
      */
     public function test_login_fallido_con_credenciales_invalidas(): void
     {
-        $userModel = new User();
+        $userModel = new Usuario();
         $user = $userModel->findByEmail('usuario.no.existe@test.com');
 
         $this->assertNull($user, 'Un usuario inexistente debe retornar null');
@@ -119,7 +119,7 @@ class AuthIntegrationTest extends TestCase
         $idUsuario = $db->lastInsertId();
 
         // Actualizar último acceso
-        $userModel = new User();
+        $userModel = new Usuario();
         $result = $userModel->updateLastAccess((int)$idUsuario);
 
         $this->assertTrue($result, 'El último acceso debe actualizarse');
@@ -138,7 +138,7 @@ class AuthIntegrationTest extends TestCase
     public function test_flujo_completo_creacion_y_autenticacion(): void
     {
         $db = Database::getInstance()->getConnection();
-        $userModel = new User();
+        $userModel = new Usuario();
 
         // 1. Crear usuario
         $stmt = $db->prepare("

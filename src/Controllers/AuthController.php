@@ -1,15 +1,15 @@
 <?php
 namespace App\Controllers;
 
-use App\Models\User;
+use App\Models\Usuario;
 use App\Services\JWTService;
 
 class AuthController {
-    private User $userModel;
+    private Usuario $userModel;
     private JWTService $jwtService;
 
     public function __construct() {
-        $this->userModel = new User();
+        $this->userModel = new Usuario();
         $this->jwtService = new JWTService();
     }
 

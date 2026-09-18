@@ -98,6 +98,27 @@ class MorosidadService {
         ");
         $stmt->execute([':id_contador' => $idContador]);
         $result = $stmt->fetch();
+
+        if ($result && $result['tarifa_mensual'] !== null) {
+            return (float)$result['tarifa_mensual'];
+        }
+
+        // Si el contador no tiene tarifa configurada, usar por defecto la de la
+        // cabecera municipal (id_tarifa = 1)
+        return $this->obtenerTarifaPorDefecto();
+    }
+
+    /**
+     * Obtener la tarifa mensual por defecto (cabecera municipal, id_tarifa = 1)
+     */
+    private function obtenerTarifaPorDefecto(): float {
+        $stmt = $this->db->prepare("
+            SELECT tarifa_mensual
+            FROM tarifas
+            WHERE id_tarifa = 1
+        ");
+        $stmt->execute();
+        $result = $stmt->fetch();
         return $result ? (float)$result['tarifa_mensual'] : 0;
     }
 
@@ -123,9 +144,9 @@ class MorosidadService {
             INSERT INTO morosidad (id_contador, mes, ano, estado, saldo_adeudado, fecha_calculo)
             VALUES (:id, :mes, :ano, :estado, :saldo, CURDATE())
             ON DUPLICATE KEY UPDATE
-            estado = :estado,
-            saldo_adeudado = :saldo,
-            fecha_calculo = CURDATE(),
+            estado = VALUES(estado),
+            saldo_adeudado = VALUES(saldo_adeudado),
+            fecha_calculo = VALUES(fecha_calculo),
             updated_at = CURRENT_TIMESTAMP
         ");
         $stmt->execute([
