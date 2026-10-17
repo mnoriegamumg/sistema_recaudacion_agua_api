@@ -96,7 +96,7 @@ class UsuarioController {
             return;
         }
 
-        $rolesPermitidos = ['admin', 'tesorero', 'cajero'];
+        $rolesPermitidos = ['admin', 'tesorero', 'cajero', 'publico'];
         if (isset($data['rol']) && !in_array($data['rol'], $rolesPermitidos)) {
             http_response_code(400);
             echo json_encode([
@@ -160,7 +160,7 @@ class UsuarioController {
 
         // Validar rol si se envía
         if (isset($data['rol'])) {
-            $rolesPermitidos = ['admin', 'tesorero', 'cajero'];
+            $rolesPermitidos = ['admin', 'tesorero', 'cajero', 'publico'];
             if (!in_array($data['rol'], $rolesPermitidos)) {
                 http_response_code(400);
                 echo json_encode([

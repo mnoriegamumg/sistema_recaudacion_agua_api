@@ -14,7 +14,7 @@ CREATE TABLE usuarios_sistema (
     nombre_completo VARCHAR(100) NOT NULL,
     correo VARCHAR(100) UNIQUE NOT NULL,
     password_hash VARCHAR(255) NOT NULL,
-    rol ENUM('admin', 'tesorero', 'cajero') DEFAULT 'cajero',
+    rol ENUM('admin', 'tesorero', 'cajero', 'publico') DEFAULT 'cajero',
     activo BOOLEAN DEFAULT TRUE,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
@@ -178,6 +178,11 @@ CREATE TABLE tarifas (
 INSERT INTO usuarios_sistema (nombre_completo, correo, password_hash, rol) 
 VALUES ('Administrador', 'admin@municipalidad.com', 
 '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'admin');
+
+-- Usuario público para consultas ciudadanas (sin password directo)
+INSERT INTO usuarios_sistema (nombre_completo, correo, password_hash, rol) 
+VALUES ('userPublic', 'userPublic@municipalidad.com', 
+'$2y$10$rK95WNe5vvfLKfsE/7bjZeQYXh.AWScm6v1IN8eqkDd0VtLGQCgEK', 'publico');
 
 -- Tarifas por comunidad
 INSERT INTO tarifas (comunidad, tarifa_mensual, tarifa_anual, descuento_anual, fecha_inicio, activo) VALUES

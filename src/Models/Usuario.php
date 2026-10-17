@@ -54,6 +54,20 @@ class Usuario {
     }
 
     /**
+     * Obtener usuario por correo o nombre completo
+     */
+    public function findByUsernameOrEmail(string $identifier): ?array {
+        $stmt = $this->db->prepare("
+            SELECT id_usuario, nombre_completo, correo, password_hash, rol, activo 
+            FROM usuarios_sistema 
+            WHERE (correo = :id1 OR nombre_completo = :id2) AND activo = 1
+        ");
+        $stmt->execute([':id1' => $identifier, ':id2' => $identifier]);
+        $result = $stmt->fetch();
+        return $result ?: null;
+    }
+
+    /**
      * Actualizar la fecha de último acceso del usuario
      */
     public function updateLastAccess(int $id): bool {

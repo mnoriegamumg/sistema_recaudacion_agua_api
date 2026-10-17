@@ -1,0 +1,32 @@
+info:
+  name: login-public
+  type: http
+  seq: 2
+
+http:
+  method: post
+  url: http://localhost:8000/api/auth/login-public
+  headers:
+    - name: Content-Type
+      value: application/json
+  body:
+    type: json
+    data: |-
+      {
+        "usuario": "userPublic",
+        "recaptcha_token": "03AFcWeA_sample_recaptcha_token_1234567890"
+      }
+  auth: inherit
+
+runtime:
+  scripts:
+    - type: before-request
+      code: |-
+        bru.setVar("token", res.body.data.token);
+        bru.setVar("TOKEN", res.body.data.token);
+
+settings:
+  encodeUrl: false
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

@@ -14,7 +14,7 @@ $dotenv->load();
 
 // Configurar CORS
 header('Access-Control-Allow-Origin: *');
-header('Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS');
+header('Access-Control-Allow-Methods: GET, POST, PUT, PATCH, DELETE, OPTIONS');
 header('Access-Control-Allow-Headers: Content-Type, Authorization, X-Requested-With');
 
 // Manejar preflight OPTIONS
@@ -41,8 +41,9 @@ $uri = strtok($uri, '?');
 // ============================================
 
 $publicRoutes = [
-    'POST /api/auth/login',
-    'OPTIONS /api/auth/login'
+    'POST /api/auth/login' => ['App\Controllers\AuthController', 'login'],
+    'POST /api/auth/login-public' => ['App\Controllers\AuthController', 'loginPublic'],
+    'POST /api/login-public' => ['App\Controllers\AuthController', 'loginPublic'],
 ];
 
 // ============================================
@@ -123,8 +124,9 @@ $protectedRoutes = [
 // 5. DETERMINAR SI LA RUTA ES PÚBLICA
 // ============================================
 
-$routeKey = $method . ' ' . $uri;
-$isPublic = in_array($routeKey, $publicRoutes);
+$isPublic = false;
+$publicMatchedRoute = null;
+$publicParams = [];
 
 // ============================================
 // 6. FUNCIÓN PARA EXTRAER PARÁMETROS DE URL
@@ -163,17 +165,44 @@ function matchRoute($route, $uri) {
     return $params;
 }
 
+// Comprobar si la petición coincide con alguna ruta pública
+foreach ($publicRoutes as $route => $handler) {
+    $params = matchRoute($route, $uri);
+    if ($params !== false && $method === explode(' ', $route)[0]) {
+        $isPublic = true;
+        $publicMatchedRoute = $route;
+        $publicParams = $params;
+        break;
+    }
+}
+
 // ============================================
 // 7. EJECUTAR RUTA
 // ============================================
 
 try {
-    // Verificar autenticación (si no es pública)
-    if (!$isPublic) {
-        $authMiddleware = new AuthMiddleware();
-        $userData = $authMiddleware->validate();
-        $_SERVER['USER_DATA'] = $userData;
+    // Si la ruta es pública, ejecutarla directamente sin requerir token JWT
+    if ($isPublic && $publicMatchedRoute) {
+        [$controllerClass, $methodName] = $publicRoutes[$publicMatchedRoute];
+
+        if (!class_exists($controllerClass)) {
+            throw new Exception('Controller no encontrado: ' . $controllerClass);
+        }
+
+        $controller = new $controllerClass();
+
+        if (!method_exists($controller, $methodName)) {
+            throw new Exception('Método no encontrado: ' . $methodName);
+        }
+
+        $controller->$methodName(...array_values($publicParams));
+        exit;
     }
+
+    // Para rutas protegidas, verificar autenticación vía JWT
+    $authMiddleware = new AuthMiddleware();
+    $userData = $authMiddleware->validate();
+    $_SERVER['USER_DATA'] = $userData;
 
     // Buscar en rutas protegidas
     $found = false;
@@ -200,24 +229,12 @@ try {
         }
     }
 
-    // Si no se encontró en protegidas, buscar en públicas
-    if (!$found && $isPublic) {
-        if ($routeKey === 'POST /api/auth/login') {
-            $controller = new App\Controllers\AuthController();
-            $controller->login();
-        } else {
-            http_response_code(404);
-            echo json_encode([
-                'success' => false,
-                'error' => 'Ruta pública no encontrada'
-            ]);
-        }
-    } elseif (!$found && !$isPublic) {
+    if (!$found) {
         http_response_code(404);
         echo json_encode([
             'success' => false,
             'error' => 'Ruta no encontrada',
-            'route' => $routeKey
+            'route' => $method . ' ' . $uri
         ]);
     }
 
